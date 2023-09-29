@@ -8,6 +8,7 @@ sensor_msgs::LaserScan rangesnow;
 sensor_msgs::LaserScan rangesObrabotan;
 ros::Publisher pubranges;
 ros::Publisher pubcloude;
+ros::Publisher pubcloudeKvad;
 
 
 void ranges_Cb(const sensor_msgs::LaserScan::ConstPtr& rangesCb)
@@ -34,24 +35,60 @@ void pointCloude(sensor_msgs::LaserScan rangesnowfunCloude)
 {
     sensor_msgs::PointCloud point;
     point.header.stamp = ros::Time::now();
-    point.header.frame_id ="laser";
+    point.header.frame_id ="base_scan";
     for(int i = 0; i < rangesnowfunCloude.ranges.size(); i++)
     {
         geometry_msgs::Point32 p;
         float x, y;
-        // point.points.at(i).x = rangesnowfunCloude.ranges.at(i) * cos(i * rangesnowfunCloude.angle_increment * 180/M_PI);
-        // p.x = point.points.at(i).x;
-        // point.points.at(i).y = rangesnowfunCloude.ranges.at(i) * sin(i * rangesnowfunCloude.angle_increment * 180/M_PI);
-        // p.y = point.points.at(i).y;
-        // point.points.push_back(p);
-
-        p.x = rangesnowfunCloude.ranges.at(i) * cos(i * rangesnowfunCloude.angle_increment*180/M_PI);
-        p.y = rangesnowfunCloude.ranges.at(i) * sin(i * rangesnowfunCloude.angle_increment*180/M_PI);
+        p.x = rangesnowfunCloude.ranges.at(i) * cos(i * rangesnowfunCloude.angle_increment);
+        p.y = rangesnowfunCloude.ranges.at(i) * sin(i * rangesnowfunCloude.angle_increment);
         point.points.push_back(p);
 
         ROS_INFO("\n x = %f \ny = %f\n", point.points.at(i).x, point.points.at(i).y);
     }
     pubcloude.publish(point);
+}
+
+
+void pointCloudeKvadrat(sensor_msgs::LaserScan rangesnowfunCloudeKvad)
+{
+    rangesnowfunCloudeKvad.range_max = 1;
+    sensor_msgs::PointCloud pointKvad;
+    pointKvad.header.stamp = ros::Time::now();
+    pointKvad.header.frame_id ="base_scan";
+    for(int i = 0; i < rangesnowfunCloudeKvad.ranges.size(); i++)
+    {
+            geometry_msgs::Point32 p;
+            float x, y;
+            {
+            if (i * rangesnowfunCloudeKvad.angle_increment <= M_PI/4 || i * rangesnowfunCloudeKvad.angle_increment >= (M_PI / 4) * 7 && i * rangesnowfunCloudeKvad.angle_increment <= 2 * M_PI)
+            {
+                p.x = rangesnowfunCloudeKvad.range_max/sqrt(2);
+                p.y = rangesnowfunCloudeKvad.ranges.at(i) * sin(i * rangesnowfunCloudeKvad.angle_increment);
+                pointKvad.points.push_back(p);                
+            }
+            if (i * rangesnowfunCloudeKvad.angle_increment > M_PI / 4 && i * rangesnowfunCloudeKvad.angle_increment <= (M_PI / 4) * 3)
+            {
+                p.y = rangesnowfunCloudeKvad.range_max/sqrt(2);
+                p.x = rangesnowfunCloudeKvad.ranges.at(i) * cos(i * rangesnowfunCloudeKvad.angle_increment);
+                pointKvad.points.push_back(p);                
+            }
+            if (i * rangesnowfunCloudeKvad.angle_increment > (M_PI / 4) * 3 && i * rangesnowfunCloudeKvad.angle_increment <= (M_PI / 4) * 5)
+            {
+                p.x = rangesnowfunCloudeKvad.range_max/-sqrt(2);
+                p.y = rangesnowfunCloudeKvad.ranges.at(i) * sin(i * rangesnowfunCloudeKvad.angle_increment);
+                pointKvad.points.push_back(p);                
+            }
+            if (i * rangesnowfunCloudeKvad.angle_increment > (M_PI / 4) * 5 && i * rangesnowfunCloudeKvad.angle_increment < (M_PI / 4) * 7)
+            {
+                p.y = rangesnowfunCloudeKvad.range_max/-sqrt(2);
+                p.x = rangesnowfunCloudeKvad.ranges.at(i) * cos(i * rangesnowfunCloudeKvad.angle_increment);
+                pointKvad.points.push_back(p);                
+            }
+            }
+    }
+    pubcloudeKvad.publish(pointKvad);
+
 }
 
 
@@ -61,6 +98,7 @@ int main(int argc, char **argv)
     ros::NodeHandle n;
     pubranges = n.advertise<sensor_msgs::LaserScan>("/scan_limited", 1000);
     pubcloude = n.advertise<sensor_msgs::PointCloud>("/point_xy", 1000);
+    pubcloudeKvad = n.advertise<sensor_msgs::PointCloud>("/point_xyKvadrat", 1000);
     ros::Subscriber sub = n.subscribe("/scan", 1000, ranges_Cb);
 
     ros::Rate loop_rate(10);
@@ -69,6 +107,7 @@ int main(int argc, char **argv)
     {
         rangesObrabotan = ranges(rangesnow);
         pointCloude(rangesObrabotan);
+        pointCloudeKvadrat(rangesObrabotan);
         ros::spinOnce();
         loop_rate.sleep();
     }
